@@ -1,0 +1,139 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="robot">
+
+    <!-- Mesh path prefix -->
+    <xacro:property name="mesh_prefix" value="package://robot_description/meshes" />
+
+    <!-- Wheel properties -->
+    <xacro:property name="wheel_radius" value="0.03" />
+    <xacro:property name="wheel_width" value="0.02" />
+    <xacro:property name="wheel_x_offset" value="0.06" />
+    <xacro:property name="wheel_y_offset" value="0.105" />
+    <xacro:property name="wheel_z_offset" value="-0.05" />
+
+    <!-- ===================== LINKS ===================== -->
+
+    <!-- BASE FOOTPRINT -->
+    <!-- 2D ground-plane projection used by nav2 and SLAM for costmap/odometry -->
+    <!-- <link name="base_footprint" /> -->
+
+    <!-- BASE LINK -->
+    <link name="base_link">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <mesh filename="${mesh_prefix}/robot.obj" />
+            </geometry>
+        </visual>
+    </link>
+
+    <!-- IMU LINK -->
+    <link name="imu_link">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <box size="0.02 0.02 0.01" />
+            </geometry>
+        </visual>
+    </link>
+
+    <!-- RPLIDAR LINK -->
+    <link name="lidar_link">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <cylinder radius="0.038" length="0.04" />
+            </geometry>
+        </visual>
+    </link>
+
+    <!-- OMNI WHEEL LINKS -->
+    <link name="wheel_front_left">
+        <visual>
+            <origin xyz="0 0 0" rpy="${pi/2} 0 0" />
+            <geometry>
+                <cylinder radius="${wheel_radius}" length="${wheel_width}" />
+            </geometry>
+        </visual>
+    </link>
+
+    <link name="wheel_front_right">
+        <visual>
+            <origin xyz="0 0 0" rpy="${pi/2} 0 0" />
+            <geometry>
+                <cylinder radius="${wheel_radius}" length="${wheel_width}" />
+            </geometry>
+        </visual>
+    </link>
+
+    <link name="wheel_rear_left">
+        <visual>
+            <origin xyz="0 0 0" rpy="${pi/2} 0 0" />
+            <geometry>
+                <cylinder radius="${wheel_radius}" length="${wheel_width}" />
+            </geometry>
+        </visual>
+    </link>
+
+    <link name="wheel_rear_right">
+        <visual>
+            <origin xyz="0 0 0" rpy="${pi/2} 0 0" />
+            <geometry>
+                <cylinder radius="${wheel_radius}" length="${wheel_width}" />
+            </geometry>
+        </visual>
+    </link>
+
+    <!-- ===================== JOINTS ===================== -->
+
+    <!-- BASE_LINK JOINT-->
+    <!-- <joint name="base_footprint_to_base_link" type="fixed">
+        <parent link="base_footprint" />
+        <child link="base_link" />
+        <origin xyz="0 0 0.05" rpy="0 0 0" />
+    </joint> -->
+
+    <!-- IMU JOINT -->
+    <joint name="base_link_to_imu" type="fixed">
+        <parent link="base_link" />
+        <child link="imu_link" />
+        <origin xyz="0.0 0.0 0.05" rpy="0 0 0" />
+    </joint>
+
+    <!-- RPLIDAR JOINT -->
+    <joint name="base_link_to_lidar" type="fixed">
+        <parent link="base_link" />
+        <child link="lidar_link" />
+        <origin xyz="0.0 0.0 0.12" rpy="0 0 0" />
+    </joint>
+
+    <!-- WHEEL JOINTS (continuous for driven wheels) -->
+    <joint name="base_link_to_wheel_front_left" type="continuous">
+        <parent link="base_link" />
+        <child link="wheel_front_left" />
+        <origin xyz="${wheel_x_offset} ${wheel_y_offset} ${wheel_z_offset}" rpy="0 0 0" />
+        <axis xyz="0 1 0" />
+    </joint>
+
+    <joint name="base_link_to_wheel_front_right" type="continuous">
+        <parent link="base_link" />
+        <child link="wheel_front_right" />
+        <origin xyz="${wheel_x_offset} ${-wheel_y_offset} ${wheel_z_offset}" rpy="0 0 0" />
+        <axis xyz="0 1 0" />
+    </joint>
+
+    <joint name="base_link_to_wheel_rear_left" type="continuous">
+        <parent link="base_link" />
+        <child link="wheel_rear_left" />
+        <origin xyz="${-wheel_x_offset} ${wheel_y_offset} ${wheel_z_offset}" rpy="0 0 0" />
+        <axis xyz="0 1 0" />
+    </joint>
+
+    <joint name="base_link_to_wheel_rear_right" type="continuous">
+        <parent link="base_link" />
+        <child link="wheel_rear_right" />
+        <origin xyz="${-wheel_x_offset} ${-wheel_y_offset} ${wheel_z_offset}" rpy="0 0 0" />
+        <axis xyz="0 1 0" />
+    </joint>
+
+</robot>

@@ -1,0 +1,39 @@
+FROM ros:jazzy-ros-base
+
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive
+ENV ROS_DISTRO=jazzy
+ENV VIRTUAL_ENV=/opt/venv
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    python3-pip \
+    python3-venv \
+    python3-serial \
+    udev \
+    ros-${ROS_DISTRO}-rmw-cyclonedds-cpp \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create and activate virtual environment
+RUN python3 -m venv $VIRTUAL_ENV
+
+# Create workspace
+WORKDIR /ros2_ws
+
+# Copy source code
+COPY ./minimu9_publisher /ros2_ws/src/minimu9_publisher
+
+# Install Python dependencies in venv
+RUN pip install --no-cache-dir pyserial
+
+# Build the workspace
+RUN . /opt/ros/${ROS_DISTRO}/setup.sh && \
+    colcon build --symlink-install
+
+# Setup entrypoint
+COPY ros_entrypoint.sh /ros_entrypoint.sh
+RUN chmod +x /ros_entrypoint.sh
+
+ENTRYPOINT ["/ros_entrypoint.sh"]
+CMD ["ros2", "launch", "minimu9_publisher", "minimu9.launch.py"]

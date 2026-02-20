@@ -1,0 +1,22 @@
+# Use ROS2 Jazzy base image
+FROM ros:jazzy-ros-base
+
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive
+ENV ROS_DISTRO=jazzy
+
+# Install RPLidar ROS2 package and dependencies
+RUN apt-get update && apt-get install -y \
+    ros-${ROS_DISTRO}-rplidar-ros \
+    ros-${ROS_DISTRO}-rmw-cyclonedds-cpp \
+    && rm -rf /var/lib/apt/lists/*
+
+# Setup entrypoint
+COPY ./ros_entrypoint.sh /
+RUN chmod +x /ros_entrypoint.sh
+ENTRYPOINT ["/ros_entrypoint.sh"]
+
+# Set working directory
+WORKDIR /
+
+CMD ["bash"]

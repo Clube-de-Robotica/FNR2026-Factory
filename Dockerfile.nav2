@@ -1,0 +1,28 @@
+# Use ROS2 Jazzy base image
+FROM ros:jazzy-ros-base
+
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive
+ENV ROS_DISTRO=jazzy
+
+# Install SLAM Toolbox, RViz2, and TF2 for transforms
+RUN apt-get update && apt-get install -y \
+    ros-${ROS_DISTRO}-slam-toolbox \
+    ros-${ROS_DISTRO}-rmw-cyclonedds-cpp \
+    ros-${ROS_DISTRO}-rviz2 \
+    ros-${ROS_DISTRO}-tf2-tools \
+    ros-${ROS_DISTRO}-tf2-ros \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create directories for config and maps
+RUN mkdir -p /root/nav2_ws/config /root/nav2_ws/maps
+
+# Setup entrypoint
+COPY ./ros_entrypoint.sh /
+RUN chmod +x /ros_entrypoint.sh
+ENTRYPOINT ["/ros_entrypoint.sh"]
+
+# Set working directory
+WORKDIR /root/nav2_ws
+
+CMD ["bash"]

@@ -1,0 +1,215 @@
+version: '3.8'
+
+services:
+
+  # ─────────────────────────────────────────────
+  # HARDWARE DRIVERS (no dependencies)
+  # ─────────────────────────────────────────────
+
+  rplidar:
+    build:
+      context: .
+      dockerfile: Dockerfile.rplidar
+    container_name: rplidar-ros2-jazzy
+    privileged: true
+    network_mode: host
+    devices:
+      - /dev/ttyUSB0:/dev/ttyUSB0
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+    environment:
+      - DISPLAY=${DISPLAY}
+      - ROS_DOMAIN_ID=0
+      - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+    stdin_open: true
+    tty: true
+    command: >
+      bash -c "
+      source /opt/ros/jazzy/setup.bash &&
+      ros2 run rplidar_ros rplidar_composition --ros-args \
+      --remap __node:=rplidar_node \
+      -p rplidar_node:serial_port:="/dev/ttyUSB0" \
+      -p rplidar_node:serial_baudrate:=115200 \
+      -p rplidar_node:frame_id:="lidar_link" \
+      -p rplidar_node:inverted:=false \
+      -p rplidar_node:angle_compensate:=true
+      "
+
+  minimu9_publisher:
+    build:
+      context: .
+      dockerfile: Dockerfile.minimu9
+    container_name: minimu9-publisher
+    privileged: true
+    network_mode: host
+    devices:
+      - /dev/ttyACM0:/dev/ttyACM0
+    environment:
+      - ROS_DOMAIN_ID=0
+      - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+    command: >
+      bash -c "
+      source /opt/ros/jazzy/setup.bash &&
+      source /ros2_ws/install/setup.bash &&
+      ros2 run minimu9_publisher minimu9_node
+      "
+
+  # robot_state_publisher - publishes TF from URDF
+  publisher:
+    build:
+      context: .
+      dockerfile: Dockerfile.publisher
+    container_name: ros2-robot-publisher
+    stdin_open: true
+    tty: true
+    privileged: true
+    network_mode: host
+    volumes:
+      - ./docker_shared:/shared
+      - /tmp/.X11-unix:/tmp/.X11-unix
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      - ROS_DOMAIN_ID=0
+      - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+    command:
+      - ros2
+      - launch
+      - robot_description
+      - view_robot.launch.py
+
+  # ─────────────────────────────────────────────
+  # FIRST-ORDER CONSUMERS
+  # ─────────────────────────────────────────────
+
+  # RF2O Laser Odometry - provides odometry for SLAM
+  rf2o_odometry:
+    build:
+      context: .
+      dockerfile: Dockerfile.rf2o
+    container_name: rf2o-laser-odometry
+    privileged: true
+    network_mode: host
+    environment:
+      - ROS_DOMAIN_ID=0
+      - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+    depends_on:
+      - rplidar
+    command: >
+      bash -c "
+      source /opt/ros/jazzy/setup.bash &&
+      source /docker_ws/install/setup.bash &&
+      sleep 3 &&
+      ros2 launch rf2o_laser_odometry rf2o_laser_odometry.launch.py
+      "
+
+  # IMU Filter - filters raw IMU data
+  imu_filter:
+    build:
+      context: .
+      dockerfile: Dockerfile.localization
+    container_name: imu-filter
+    network_mode: host
+    volumes:
+      - ./config:/root/config
+    environment:
+      - ROS_DOMAIN_ID=0
+      - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+    depends_on:
+      - minimu9_publisher
+    command: >
+      bash -c "
+        source /opt/ros/jazzy/setup.bash &&
+        sleep 3 &&
+        ros2 run imu_filter_madgwick imu_filter_madgwick_node
+          --ros-args --params-file /root/config/imu_filter_madgwick.yaml
+        "
+
+  # ─────────────────────────────────────────────
+  # SECOND-ORDER CONSUMERS
+  # ─────────────────────────────────────────────
+
+  # EKF - fuses RF2O odometry and filtered IMU
+  robot_localization:
+    build:
+      context: .
+      dockerfile: Dockerfile.localization
+    container_name: robot-localization-ekf
+    network_mode: host
+    volumes:
+      - ./config:/root/config
+    environment:
+      - ROS_DOMAIN_ID=0
+      - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+    depends_on:
+      - rf2o_odometry
+      - imu_filter
+    command: >
+      bash -c "
+        source /opt/ros/jazzy/setup.bash &&
+        sleep 5 &&
+        ros2 run robot_localization ekf_node
+          --ros-args --params-file /root/config/ekf.yaml
+      "
+
+  # SLAM Toolbox for mapping
+  slam_mapping:
+    build:
+      context: .
+      dockerfile: Dockerfile.nav2
+    container_name: nav2-slam-mapping
+    privileged: true
+    network_mode: host
+    volumes:
+      - ./config:/root/nav2_ws/config
+      - ./maps:/root/nav2_ws/maps
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+    environment:
+      - DISPLAY=${DISPLAY}
+      - ROS_DOMAIN_ID=0
+      - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+    stdin_open: true
+    tty: true
+    depends_on:
+      - rplidar
+      - robot_localization
+      - publisher
+    command: >
+      bash -c "
+        source /opt/ros/jazzy/setup.bash &&
+        sleep 5 &&
+        ros2 launch slam_toolbox online_async_launch.py
+          slam_params_file:=/root/nav2_ws/config/mapper_params_online_async.yaml
+          use_sim_time:=false
+        "
+
+  # # ─────────────────────────────────────────────
+  # # VISUALIZATION
+  # # ─────────────────────────────────────────────
+
+  # rviz2:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.nav2
+  #   container_name: slam_rviz
+  #   privileged: true
+  #   network_mode: host
+  #   volumes:
+  #     - /tmp/.X11-unix:/tmp/.X11-unix:rw
+  #   environment:
+  #     - DISPLAY=${DISPLAY}
+  #     - ROS_DOMAIN_ID=0
+  #     - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+  #   stdin_open: true
+  #   tty: true
+  #   depends_on:
+  #     - slam_mapping
+  #     - robot_localization
+  #     - publisher
+  #   command: >
+  #     bash -c "
+  #     source /opt/ros/jazzy/setup.bash &&
+  #     sleep 8 &&
+  #     ros2 run rviz2 rviz2 -d /root/nav2_ws/config/slam.rviz
+  #     "
