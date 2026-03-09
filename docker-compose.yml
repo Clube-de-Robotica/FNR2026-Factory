@@ -50,8 +50,29 @@ services:
     command: >
       bash -c "
       source /opt/ros/jazzy/setup.bash &&
-      source /ros2_ws/install/setup.bash &&
+      source /docker_ws/install/setup.bash &&
       ros2 run minimu9_publisher minimu9_node
+      "
+
+  motor_driver:
+    build:
+      context: .
+      dockerfile: Dockerfile.motors
+    container_name: motor-driver
+    privileged: true
+    network_mode: host
+    devices:
+      - /dev/ttyACM0:/dev/ttyACM0
+    volumes:
+     - ./shared:/shared
+    environment:
+      - ROS_DOMAIN_ID=0
+      - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+    command: >
+      bash -c "
+      source /opt/ros/jazzy/setup.bash &&
+      source /docker_ws/install/setup.bash &&
+      ros2 run motor_driver motor_driver_node
       "
 
   # robot_state_publisher - publishes TF from URDF
@@ -65,7 +86,7 @@ services:
     privileged: true
     network_mode: host
     volumes:
-      - ./docker_shared:/shared
+      - ./shared:/shared
       - /tmp/.X11-unix:/tmp/.X11-unix
     environment:
       - PYTHONUNBUFFERED=1
@@ -161,7 +182,7 @@ services:
     network_mode: host
     volumes:
       - ./config:/root/nav2_ws/config
-      - ./maps:/root/nav2_ws/maps
+      - ./shared:/shared
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
     environment:
       - DISPLAY=${DISPLAY}

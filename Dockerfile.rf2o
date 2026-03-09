@@ -31,21 +31,19 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /docker_ws/src
 
 # Clone rf2o_laser_odometry repository
-COPY ./rf2o_laser_odometry /docker_ws/src/rf2o_laser_odometry
+COPY ./packages/rf2o_laser_odometry /docker_ws/src/rf2o_laser_odometry
 # RUN cd /root/rf2o_ws/src && \
 #     git clone https://github.com/MAPIRlab/rf2o_laser_odometry.git
 
+WORKDIR /docker_ws/
+
 # Build the workspace with verbose output
-RUN cd /docker_ws && \
-    bash -c "source /opt/ros/${ROS_DISTRO}/setup.bash && colcon build --symlink-install --event-handlers console_direct+" || \
-    echo "Build completed with potential warnings"
+RUN . /opt/ros/${ROS_DISTRO}/setup.sh && \
+    colcon build --symlink-install --event-handlers console_direct+
 
 # Setup entrypoint
 COPY ./ros_entrypoint.sh /
 RUN chmod +x /ros_entrypoint.sh
 ENTRYPOINT ["/ros_entrypoint.sh"]
-
-# Set working directory
-WORKDIR /docker_ws
 
 CMD ["bash"]

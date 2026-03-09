@@ -25,9 +25,9 @@ RUN apt update --fix-missing && apt install -y \
 
 WORKDIR /docker_ws/src/
 
-COPY ./robot_description ./robot_description
+COPY ./packages/robot_description ./robot_description
 
-WORKDIR /docker_ws/
+WORKDIR /docker_ws
 
 # Build the workspace
 RUN . /opt/ros/${ROS_DISTRO}/setup.sh && \

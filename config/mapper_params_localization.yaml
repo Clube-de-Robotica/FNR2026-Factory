@@ -17,7 +17,7 @@ slam_toolbox:
     mode: localization
 
     # Map file to load
-    map_file_name: /root/nav2_ws/maps/my_map_serial
+    map_file_name: /shared/maps/my_map_serial
     map_start_pose: [0.0, 0.0, 0.0]
     map_start_at_dock: true
 
