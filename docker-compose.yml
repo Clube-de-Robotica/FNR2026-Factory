@@ -54,11 +54,11 @@ services:
       ros2 run minimu9_publisher minimu9_node
       "
 
-  motor_driver:
+  mecanum_driver:
     build:
       context: .
-      dockerfile: Dockerfile.motors
-    container_name: motor-driver
+      dockerfile: Dockerfile.mecanum
+    container_name: mecanum-driver
     privileged: true
     network_mode: host
     devices:
@@ -68,12 +68,34 @@ services:
     environment:
       - ROS_DOMAIN_ID=0
       - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
-    command: >
-      bash -c "
-      source /opt/ros/jazzy/setup.bash &&
-      source /docker_ws/install/setup.bash &&
-      ros2 run motor_driver motor_driver_node
-      "
+    command:
+      - ros2 
+      - launch 
+      - mecanum_driver 
+      - mecanum_driver.launch.py
+
+  teleop:
+    build:
+      context: .
+      dockerfile: Dockerfile.teleop
+    container_name: teleop
+    privileged: true
+    network_mode: host
+    volumes:
+     - ./shared:/shared
+     - /dev/input:/dev/input:rw
+    environment:
+      - ROS_DOMAIN_ID=0
+      - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+    stdin_open: true
+    tty: true
+    command:
+      - ros2 
+      - launch 
+      - teleop_twist_joy 
+      - teleop-launch.py 
+      - joy_config:='xbox'
+      - params_file:='/shared/teleop_params.yaml'
 
   # robot_state_publisher - publishes TF from URDF
   publisher:

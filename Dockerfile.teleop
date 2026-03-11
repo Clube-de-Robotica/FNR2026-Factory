@@ -1,0 +1,28 @@
+# Use ROS2 Jazzy base image
+FROM ros:jazzy-ros-base
+
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive
+ENV ROS_DISTRO=jazzy
+ENV RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+
+# Install teleop twist keyboard and dependencies
+RUN apt-get update && apt-get install -y \
+    ros-${ROS_DISTRO}-teleop-twist-keyboard \
+    ros-${ROS_DISTRO}-teleop-twist-joy \
+    ros-${ROS_DISTRO}-rmw-cyclonedds-cpp \
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /docker_ws/src
+WORKDIR /docker_ws
+
+RUN . /opt/ros/${ROS_DISTRO}/setup.sh && \
+    colcon build --symlink-install
+
+# Setup entrypoint
+COPY ./ros_entrypoint.sh /
+RUN chmod +x /ros_entrypoint.sh
+
+ENTRYPOINT ["/ros_entrypoint.sh"]
+CMD ["ros2", "run", "teleop_twist_keyboard", "teleop_twist_keyboard"]
